@@ -50,8 +50,9 @@ pip install selenium
 ## Cloning the repository
 
 You need git, a distributed versioning system, to download a local copy of this repository. Open a terminal and type:
-
+```
 git clone https://github.com/nkimoto/bed365_scraper
+```
 This will copy the repository in a local folder named bed365_scraper.
 
 ## Usage
