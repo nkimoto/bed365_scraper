@@ -1,4 +1,4 @@
-# bed365_scraper
+# bed365_scraper(dev)
 
 For scraping [bed365](https://www.bet365.com/)
 
