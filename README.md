@@ -4,6 +4,7 @@ For scraping [bed365](https://www.bet365.com/)
 
 ## Instration
 
+### Python
 You need Python 3 (or 2) and a bunch of modules for scraping.
 
 I highly recommend that you use an all-in-one Python distribution like Anaconda. This distribution comes with an excellent package manager named conda. It lets you install easily many modules on most platforms (Windows, Linux, Mac OS X), in 64-bit (recommended if you have a 64-bit OS) or 32-bit.
