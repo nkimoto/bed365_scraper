@@ -13,6 +13,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import csv
+import openpyxl as px
+import datetime
 
 def set_up(url):
     options = Options()
@@ -27,7 +29,6 @@ def set_up(url):
     driver.get(url)
     print('Searching in ' + url)
     time.sleep(waittime)
-    driver.save_screenshot('home.png')
     driver.find_elements_by_tag_name("a")[18].click()
     time.sleep(waittime)
     return driver
@@ -37,48 +38,38 @@ def scraping(driver, match_num, roop_count):
     SCRAPING CODE
     RETURN : DICT LIST
     """
-    count = 0
+    count = 1
     All_Res_Dict = {}
-    while count < roop_count:
-        if driver.find_element_by_css_selector(
-                "div.li-InPlayClassificationButton_Header>\
-            div.li-InPlayClassificationButton_HeaderLabel"
-        ).text == "Soccer":
+    events_dict = {}
+    while count <= roop_count:
+        print('Now roop count is ' + str(count))
+        if e_wait(driver, 'div.li-InPlayClassificationButton_Header>\
+                div.li-InPlayClassificationButton_HeaderLabel').text == "Soccer":
             print('Soccer term found!')
-            print(driver.find_elements_by_css_selector(
-                    "div.li-InPlayClassificationButton_Header+\
-                div.li-InPlayClassification_League>\
-                div.li-InPlayLeague"))
             matchnum = match_num if match_num else len(driver.find_elements_by_css_selector(
-                    "div.li-InPlayClassificationButton_Header+\
-                div.li-InPlayClassification_League>\
-                div.li-InPlayLeague"))
+            "div.li-InPlayClassificationButton_Header+\
+                    div.li-InPlayClassification_League>\
+                    div.li-InPlayLeague"))
+            print(match_num, matchnum)
             for n in range(matchnum):
             # Specify target matchs
-                print(n)
-                try:
-                    i = driver.find_elements_by_css_selector(
-                        "div.li-InPlayClassificationButton_Header+\
+                e_wait(driver, "div.li-InPlayClassificationButton_Header+\
                     div.li-InPlayClassification_League>\
-                    div.li-InPlayLeague")[n].find_element_by_css_selector("div.li-InPlayEventHeader")
-                    match_name = str(i.text.split('\n')[0])
-                except Exception:
-           
-                    print("Match Name can't get")
-                    continue
+                    div.li-InPlayLeague")
+                i = driver.find_elements_by_css_selector(
+                    "div.li-InPlayClassificationButton_Header+\
+                div.li-InPlayClassification_League>\
+                div.li-InPlayLeague")[n].find_element_by_css_selector("div.li-InPlayEventHeader")
+                match_name = str(i.text.split('\n')[0])
                 if match_name not in All_Res_Dict:
                     print('====================' + match_name + ' start scraping!====================')
                     All_Res_Dict[match_name] = []
                 i.click()
-                time.sleep(waittime)
                 res_dict = {}
-                driver.save_screenshot('game{}.png'.format(str(n)))
                 try:
-                    time_reg = driver.find_element_by_css_selector(
-                        "div.ipe-SoccerHeaderLayout>div.ipe\
-                        -SoccerHeaderLayout_ExtraData").text
-                    print(time_reg)
-                    res_dict['Time'] = time_reg
+                    time_reg = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
+                    print(time_reg.text)
+                    res_dict['Time'] = time_reg.text
                 except:
                     print("Time can't get")
                 for h in driver.find_elements_by_css_selector(
@@ -108,6 +99,14 @@ def scraping(driver, match_num, roop_count):
                                 res_dict['Half Time Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
                             except:
                                 print('Half Time Result not showing now.')
+                    if s.text == "1st Goal":
+                        for m in h.find_elements_by_css_selector(
+                                "div.gl-Participant"):
+                            print("1st Goal\n" + m.text)
+                            try:
+                                res_dict['1st Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
+                            except:
+                                print('1st Goal not showing now.')
                     if s.text == "2nd Goal":
                         for m in h.find_elements_by_css_selector(
                                 "div.gl-Participant"):
@@ -115,39 +114,49 @@ def scraping(driver, match_num, roop_count):
                             try:
                                 res_dict['2nd Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
                             except:
-                                print('Fulltime Result not showing now.')
+                                print('2nd Goal not showing now.')
                     if s.text == "Alternative Match Goals":
                         val = h.find_element_by_css_selector('div.gl-MarketLabel').text
                         over = h.find_elements_by_css_selector('div.gl-MarketValues')[0].text
                         under = h.find_elements_by_css_selector('div.gl-MarketValues')[1].text
-                        altdict = {m : (n, l) for m, n, l in zip(val.split('\n'), over.split('\n'), under.split('\n'))}
+                        altlist = [[m , n, l] for m, n, l in zip(val.split('\n'), over.split('\n')[1:], under.split('\n')[1:])]
                         print("Alternative Match Goals")
-                        print(altdict)
-                        res_dict['Alternative Match Goals'] = altdict
-                try:
-                    allstats = driver.find_element_by_css_selector("div.ml1-AllStats").text
-                    print(allstats)
-                    res_dict['allstats'] = allstats
-                    Possesion = driver.find_elements_by_css_selector("div.ml1-StatWheel")[2].text
-                    print("Possession " + Posession)
-                    res_dict['possesion'] = Posession
-                except:
-                    pass
+                        print(altlist)
+                        res_dict['Alternative Match Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
+                # Wheel nums
+                for i, num in zip(('Attacks', 'Dangerous Attacks', 'Possession'), range(3)):
+                    try:
+                        element1 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team1Text")[num].text
+                        element2 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team2Text")[num].text
+                        print("Possession " + Possession1 + ' : ' + Possession2)
+                        res_dict['Possession'] = (Possession1, Possession2)
+                    except:
+                        print('There is no ' + str(i))
+                # Bar nums
+                for i, num in zip(('On Target', 'Off Target'), range(2)):
+                    try:    
+                        element1 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar_MiniBarValue-1")[num].text
+                        element2 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar_MiniBarValue-2")[num].text
+                        print(i + element1 + ':' + element2)
+                        res_dict[i] = (element1, element2)
+                    except:
+                        print('There is no ' + str(i))
                 All_Res_Dict[match_name].append(res_dict)
                 print(All_Res_Dict)
                 print('\nNew appending dict')
                 print(res_dict)
+                if count == roop_count:
+                    events = driver.find_element_by_css_selector('div.ipe-SummaryNativeScroller_Content').text
+                    events_list = events.split('\n')
+                    events_dict['match_name'] = events_list
                 driver.back()
                 print("back now")
-                time.sleep(30)
-                print("take picture{}".format(n))
-                driver.save_screenshot('game{}.png'.format(str(n + 100)))
-            roop_count += 1
+            count += 1
         else:
             print('Waiting...')
-            time.sleep(20)
+            time.sleep(60)
     driver.quit()
-    return All_Res_Dict
+    return All_Res_Dict, events_dict
 
     """"
     while True:
@@ -177,7 +186,7 @@ def scraping(driver, match_num, roop_count):
         TagRemovePatt = r'<.*?>'
     """
 
-def ExcelWriter(All_Res_Dict):
+def ExcelWriter(All_Res_Dict, events_dict):
     def merge(ws):
         ws.merge_cells('A%s:A%s' % (1, 2), 'Merged Range')
         ws.merge_cells('B%s:D%s' % (1, 1), 'Merged Range')
@@ -214,36 +223,71 @@ def ExcelWriter(All_Res_Dict):
         SummarySheet = Target.copy_worksheet(ActiveWS)
         SummarySheet.title = match[:31]
         merge(SummarySheet)
-        for info_dict in match:
-            SummarySheet['A' + Row].value = str(info_dict.get('Time', 'NoData'))
-            for col in zip(['B', 'C', 'D']):
+        # complement header
+        name1_list = ('B', 'E', 'H', 'K', 'T', 'V', 'X')
+        name2_list = ('D', 'G', 'J', 'M', 'U', 'W', 'Y')
+        for col1, col2 in zip(name1_list, name2_list):
+            SummarySheet[col1 + '3'].value = match.split(' v ')[0]
+            SummarySheet[col2 + '3'].value = match.split(' v ')[1]
+        for info_dict in All_Res_Dict[match]:
+            SummarySheet['A' + str(Row)].value = str(info_dict.get('Time', 'NoData'))
+            for col in ['B', 'C', 'D']:
                 try:
                     for key in info_dict.get('Fulltime Result'):
-                        SummarySheet[col + Row].value = str(info_dict['Fulltime Result'][key])
+                        SummarySheet[col + str(Row)].value = str(info_dict['Fulltime Result'][key])
                 except:
-                    SummarySheet[col + Row].value = 'NoData'
-                    break
-            for col in zip(['E', 'F', 'G']):
+                    SummarySheet[col + str(Row)].value = 'NoData'
+            for col in ['E', 'F', 'G']:
                 try:
                     for key in info_dict.get('Halftime Result'):
-                        SummarySheet[col + Row].value = str(info_dict['Halftime Result'][key])
+                        SummarySheet[col + str(Row)].value = str(info_dict['Halftime Result'][key])
                 except:
-                    SummarySheet[col + Row].value = 'NoData'
-                    break
-            for col in zip(['H', 'I', 'J']):
+                    SummarySheet[col + str(Row)].value = 'NoData'
+            for col in ['H', 'I', 'J']:
+                try:
+                    for key in info_dict.get('1st Goal'):
+                        SummarySheet[col + str(Row)].value = str(info_dict['1st Goal'][key])
+                except:
+                    SummarySheet[col + str(Row)].value = 'NoData'
+            for col in ['K', 'L', 'M']:
                 try:
                     for key in info_dict.get('2nd Goal'):
-                        SummarySheet[col + Row].value = str(info_dict['2nd Goal'][key])
+                        SummarySheet[col + str(Row)].value = str(info_dict['2nd Goal'][key])
                 except:
-                    SummarySheet[col + Row].value = 'NoData'
-                    break
+                    SummarySheet[col + str(Row)].value = 'NoData'
+            for col, num in zip(['N', 'O', 'P'], range(3)):
+                try:
+                    SummarySheet[col + str(Row)].value = str(info_dict['Alternative Match Goals'][num])
+                except:
+                    SummarySheet[col + str(Row)].value = 'NoData'
+            for i, j in zip([('T', 'U'), ('V', 'W'), ('X', 'Y'), ('Z', 'AA'), ('AB', 'AC')],(
+                'Attacks', 'Dangerous Attacks', 'Possession', 'Off Target', 'On Target')):
+                for col, num in zip(i, range(2)):
+                    try:
+                        SummarySheet[col + str(Row)].value = str(info_dict[j][num])
+                    except:
+                        SummarySheet[col + str(Row)].value = 'NoData'
+
+
             Row += 1
+        SummarySheet['AE' + str(Row)].value = events_dict[match_name]
 
     # Delete tmp Sheet
     ActiveWS = Target.get_sheet_by_name('Match_name')
     Target.remove_sheet(ActiveWS)
     # Save
-    Target.save('Report/Result.xlsx')
+    Target.save('Report/Res_' + datetime + '.xlsx')
+
+
+def e_wait(driver, element, max_time = 60):
+    try:
+        return_element = WebDriverWait(driver, max_time).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, element))
+                )
+    except:
+        print(element + " can't get!")
+        pass
+    return return_element
 
 
 def write_list_to_csv(res_file, fieldnamelist, dictlist):
@@ -252,6 +296,7 @@ def write_list_to_csv(res_file, fieldnamelist, dictlist):
         writer.writeheader()
         for d in dictlist:
             writer.writerow(d)
+
 
 def Argument_Parser():
     """
@@ -283,6 +328,7 @@ def Argument_Parser():
     args = parser.parse_args()
     return args
 
+
 def main():
     print('bed365_scraper START!!')
     driver = set_up('https://www.bet365.com/home/')
@@ -291,8 +337,8 @@ def main():
     print('END!!')
 
 
-
 if __name__ == '__main__':
+    NowTime = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     args = Argument_Parser()
     waittime = args.wait
     main()
