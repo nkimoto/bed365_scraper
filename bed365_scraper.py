@@ -52,22 +52,16 @@ def scraping(driver, match_num, roop_count):
             print(match_num, matchnum)
             for n in range(matchnum):
             # Specify target matchs
-                e_wait(driver, "div.li-InPlayClassificationButton_Header+\
-                    div.li-InPlayClassification_League>\
-                    div.li-InPlayLeague")
-                i = driver.find_elements_by_css_selector(
-                    "div.li-InPlayClassificationButton_Header+\
+                game_css = "div.li-InPlayClassificationButton_Header+\
                 div.li-InPlayClassification_League>\
-                div.li-InPlayLeague")[n].find_element_by_css_selector("div.li-InPlayEventHeader")
-                j = "div.li-InPlayClassificationButton_Header+\
-                div.li-InPlayClassification_League>\
-                div.li-InPlayLeague"
-                match_name = str(i.text.split('\n')[0])
+                div.li-InPlayLeague:nth-of-type(%s)>\
+                div.li-InPlayEventHeader" %(n)
+                game = e_wait(driver, game_css)
+                match_name = str(game.text.split('\n')[0])
                 if match_name not in All_Res_Dict:
                     print('====================' + match_name + ' start scraping!====================')
                     All_Res_Dict[match_name] = []
-                time.sleep(10)
-                i.click()
+                game.click()
                 res_dict = {}
                 try:
                     time_reg = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
@@ -292,7 +286,7 @@ def ExcelWriter(All_Res_Dict, events_dict):
     Target.save('Report/Res_' + NowTime + '.xlsx')
 
 
-def e_wait(driver, element, max_time = 60):
+def e_wait(driver, element, max_time = 10):
     return_element = None
     try:
         return_element = WebDriverWait(driver, max_time).until(
