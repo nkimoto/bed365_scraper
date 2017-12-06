@@ -11,6 +11,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
 import time
 import csv
 import openpyxl as px
@@ -19,6 +20,7 @@ import datetime
 def set_up(url):
     options = Options()
 #    options.add_argument('--headless')
+    options.binary_location = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
     options.add_argument('--disable-gpu')
     prefs = {"profile.default_content_setting_values.notifications" : 2}
     options.add_experimental_option("prefs",prefs)
@@ -29,7 +31,6 @@ def set_up(url):
     print('Searching in ' + url)
     time.sleep(waittime)
     driver.find_elements_by_tag_name("a")[18].click()
-    time.sleep(waittime)
     return driver
 
 def scraping(driver, match_num, roop_count):
@@ -41,30 +42,61 @@ def scraping(driver, match_num, roop_count):
     All_Res_Dict = {}
     events_dict = {}
     while count <= roop_count:
-        print('Now roop count is ' + str(count))
-        if e_wait(driver, 'div.li-InPlayClassificationButton_Header>\
-                div.li-InPlayClassificationButton_HeaderLabel').text == "Soccer":
+        # initiate
+        print('Now roop count is ' + str(count))    
+        first_term = e_wait(driver, 'div.li-InPlayClassificationButton_Header>' + \
+                'div.li-InPlayClassificationButton_HeaderLabel')
+        if not first_term:
+            while first_term:
+                first_term = e_wait(driver, 'div.li-InPlayClassificationButton_Header>' + \
+                        'div.li-InPlayClassificationButton_HeaderLabel')
+                print('waiting...')
+        else:
+            pass
+        if first_term.text == "Soccer":
             print('Soccer term found!')
-            matchnum = match_num if match_num else len(driver.find_elements_by_css_selector(
-            "div.li-InPlayClassificationButton_Header+\
-                    div.li-InPlayClassification_League>\
-                    div.li-InPlayLeague"))
-            print(match_num, matchnum)
-            for n in range(matchnum):
-            # Specify target matchs
-                game_css = "div.li-InPlayClassificationButton_Header+\
-                div.li-InPlayClassification_League>\
-                div.li-InPlayLeague:nth-of-type(%s)>\
-                div.li-InPlayEventHeader" %(n)
-                game = e_wait(driver, game_css)
-                match_name = str(game.text.split('\n')[0])
+            soccer = e_wait(driver, 'div.li-InPlayClassification')
+            leagues = soccer.find_elements_by_css_selector('div.li-InPlayClassificationButton_Header+' +\
+                    'div.li-InPlayClassification_League>' + \
+                    'div.li-InPlayLeague')
+            game_x_list = []
+            for i, league in enumerate(leagues):
+                league_num = i + 1
+                e_wait(league, 'div.li-InPlayEvent')
+                league_matchs = league.find_elements_by_css_selector(
+                        'div.li-InPlayEvent')
+                if len(league_matchs) == 1:
+                    game_x = "//div[2]/div[%s]/div[2]/div/div[1]" %(
+                                    league_num)
+                    game_x_list.append(game_x)
+                elif len(league_matchs) > 1:
+                    for m, match in enumerate(league_matchs):
+                        match_num = m + 1
+                        game_x = "//div[2]/div[%s]/div[2]/div[%s]/div[1]" %(
+                                        league_num, match_num)
+                        game_x_list.append(game_x)
+            for game_x in game_x_list:    
+                try:
+                    game = c_wait(league, game_x)
+                except:
+                    break
+                try:
+                    match_name = str(game.text.split('\n')[0])
+                except:
+                    continue
                 if match_name not in All_Res_Dict:
                     print('====================' + match_name + ' start scraping!====================')
                     All_Res_Dict[match_name] = []
-                game.click()
+                try:
+                    game.click()
+                except: 
+                    print(str(game) + ' does not clickable...\nscroll page!')
+                    driver.execute_script('window.scrollBy(0,150);')
+                    v_wait(driver, game_x)
+                    game.click()
                 res_dict = {}
                 try:
-                    time_reg = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
+                    time_reg  = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
                     print(time_reg.text)
                     res_dict['Time'] = time_reg.text
                 except:
@@ -72,19 +104,19 @@ def scraping(driver, match_num, roop_count):
                 for h in driver.find_elements_by_css_selector(
                         "div.gl-MarketGroup"):
                     try:
-                        s = h.find_element_by_css_selector(
-                            "div.gl-MarketGroupButton")
+                        s = e_wait(h, "div.gl-MarketGroupButton")
+                        print('s : ' + s.text)
                     except:
                         print("gl-MarketGroupButton not found")
                         continue
-                    print('s : ' + s.text)
                     if s.text == "Fulltime Result":
                         res_dict['Fulltime Result'] = {}
+                        e_wait(h, "div.gl-Participant")
                         for m in h.find_elements_by_css_selector(
                                 "div.gl-Participant"):
-                            print("Fulltime Result\n :".format(n) + m.text)
-                            print(m.text.split('\n'))
                             try:
+                                print("Fulltime Result : " + m.text)
+                                print(m.text.split('\n'))
                                 res_dict['Fulltime Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
                             except:
                                 print('Fulltime Result not showing now.')
@@ -147,7 +179,7 @@ def scraping(driver, match_num, roop_count):
                     try:
                         events = e_wait(driver, 'div.ipe-SummaryNativeScroller_Content')
                         events_list = events.split('\n')
-                        events_dict['match_name'] = events_list
+                        events_dict[match_name] = events_list
                     except:
                         print("events list can't get.")
                         pass
@@ -158,7 +190,7 @@ def scraping(driver, match_num, roop_count):
             print('Waiting...')
             time.sleep(60)
     driver.quit()
-    return All_Res_Dict, events_dict
+    return All_Res_Dict, events_dict_list
 
     """"
     while True:
@@ -286,7 +318,7 @@ def ExcelWriter(All_Res_Dict, events_dict):
     Target.save('Report/Res_' + NowTime + '.xlsx')
 
 
-def e_wait(driver, element, max_time = 10):
+def e_wait(driver, element, max_time = 30):
     return_element = None
     try:
         return_element = WebDriverWait(driver, max_time).until(
@@ -296,6 +328,42 @@ def e_wait(driver, element, max_time = 10):
         print(element + " can't get!")
         pass
     return return_element
+
+def c_wait(driver, element, max_time = 10):
+    return_element = None
+    try:
+        return_element = WebDriverWait(driver, max_time).until(
+                EC.element_to_be_clickable((By.XPATH, element))
+                )
+    except:
+        print(element + " can't get!")
+        pass
+    return return_element
+
+
+def x_wait(driver, element, max_time = 10):
+    return_element = None
+    try:
+        return_element = WebDriverWait(driver, max_time).until(
+                EC.element_of_element_located((By.XPATH, element))
+                )
+    except:
+        print(element + " can't get!")
+        pass
+    return return_element
+
+
+def v_wait(driver, element, max_time = 10):
+    return_element = None
+    try:
+        return_element = WebDriverWait(driver, max_time).until(
+                EC.visibility_of_element_located((By.XPATH, element))
+                )
+    except:
+        print(element + " can't get!")
+        pass
+    return return_element
+
 
 
 def write_list_to_csv(res_file, fieldnamelist, dictlist):
