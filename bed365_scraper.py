@@ -1,5 +1,5 @@
 #! env python
-# -*- coding: utf-8 -*
+# coding=shift_jis
 
 from argparse import ArgumentParser
 import re
@@ -55,142 +55,159 @@ def scraping(driver, match_num, roop_count):
             pass
         if first_term.text == "Soccer":
             print('Soccer term found!')
-            soccer = e_wait(driver, 'div.li-InPlayClassification')
-            leagues = soccer.find_elements_by_css_selector('div.li-InPlayClassificationButton_Header+' +\
-                    'div.li-InPlayClassification_League>' + \
-                    'div.li-InPlayLeague')
-            game_x_list = []
+            soccer = e_wait(driver, 'div.li-InPlayClassification_League')
+            leagues = soccer.find_elements_by_css_selector('div.li-InPlayLeague')
             for i, league in enumerate(leagues):
+                game_x_list = []
                 league_num = i + 1
                 e_wait(league, 'div.li-InPlayEvent')
                 league_matchs = league.find_elements_by_css_selector(
                         'div.li-InPlayEvent')
                 if len(league_matchs) == 1:
-                    game_x = "//div[2]/div[%s]/div[2]/div/div[1]" %(
+                    game_x = "///../../../../../div[2]/div[%s]/div[2]/div/div[1]" %(
                                     league_num)
                     game_x_list.append(game_x)
                 elif len(league_matchs) > 1:
                     for m, match in enumerate(league_matchs):
                         match_num = m + 1
-                        game_x = "//div[2]/div[%s]/div[2]/div[%s]/div[1]" %(
+                        game_x = "///../../../../../../div[2]/div[%s]/div[2]/div[%s]/div[1]" %(
                                         league_num, match_num)
                         game_x_list.append(game_x)
-            for game_x in game_x_list:    
-                try:
-                    game = c_wait(league, game_x)
-                except:
-                    break
-                try:
-                    match_name = str(game.text.split('\n')[0])
-                except:
-                    continue
-                if match_name not in All_Res_Dict:
-                    print('====================' + match_name + ' start scraping!====================')
-                    All_Res_Dict[match_name] = []
-                try:
-                    game.click()
-                except: 
-                    print(str(game) + ' does not clickable...\nscroll page!')
-                    driver.execute_script('window.scrollBy(0,150);')
-                    v_wait(driver, game_x)
-                    game.click()
-                res_dict = {}
-                try:
-                    time_reg  = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
-                    print(time_reg.text)
-                    res_dict['Time'] = time_reg.text
-                except:
-                    print("Time can't get")
-                for h in driver.find_elements_by_css_selector(
-                        "div.gl-MarketGroup"):
-                    try:
-                        s = e_wait(h, "div.gl-MarketGroupButton")
-                        print('s : ' + s.text)
-                    except:
-                        print("gl-MarketGroupButton not found")
+                for game_x in game_x_list:
+                    print(game_x)
+                    c = 0
+                    while c < 5:
+                        try:
+                            game = c_wait(driver, game_x)
+                            match_name = str(game.text.split('\n')[0])
+                            game.click()
+                            break
+                        except: # match can't get : not exist or not visible
+                            print(game)
+                            print(' does not clickable...\nscroll page!')
+                            driver.execute_script('window.scrollBy(0,300);')
+                            c += 1
+                    else: # not exist
+                        print('!!!!!!!!!!')
                         continue
-                    if s.text == "Fulltime Result":
-                        res_dict['Fulltime Result'] = {}
-                        e_wait(h, "div.gl-Participant")
-                        for m in h.find_elements_by_css_selector(
-                                "div.gl-Participant"):
-                            try:
-                                print("Fulltime Result : " + m.text)
-                                print(m.text.split('\n'))
-                                res_dict['Fulltime Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                            except:
-                                print('Fulltime Result not showing now.')
-                    if s.text == "Half Time Result":
-                        for m in h.find_elements_by_css_selector(
-                                "div.gl-Participant"):
-                            print("Halftime Result\n" + m.text)
-                            try:
-                                res_dict['Half Time Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                            except:
-                                print('Half Time Result not showing now.')
-                    if s.text == "1st Goal":
-                        for m in h.find_elements_by_css_selector(
-                                "div.gl-Participant"):
-                            print("1st Goal\n" + m.text)
-                            try:
-                                res_dict['1st Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                            except:
-                                print('1st Goal not showing now.')
-                    if s.text == "2nd Goal":
-                        for m in h.find_elements_by_css_selector(
-                                "div.gl-Participant"):
-                            print("2nd Goal\n" + m.text)
-                            try:
-                                res_dict['2nd Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                            except:
-                                print('2nd Goal not showing now.')
-                    if s.text == "Alternative Match Goals":
-                        val = h.find_element_by_css_selector('div.gl-MarketLabel').text
-                        over = h.find_elements_by_css_selector('div.gl-MarketValues')[0].text
-                        under = h.find_elements_by_css_selector('div.gl-MarketValues')[1].text
-                        altlist = [[m , n, l] for m, n, l in zip(val.split('\n'), over.split('\n')[1:], under.split('\n')[1:])]
-                        print("Alternative Match Goals")
-                        print(altlist)
-                        res_dict['Alternative Match Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
+                    if match_name not in All_Res_Dict:
+                        try:
+                            print('====================' + match_name + ' start scraping!====================')
+                        except:
+                            print('====================start scraping!===========================')
+                        All_Res_Dict[match_name] = []
+                    res_dict = {}
+                    try:
+                        time_reg  = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
+                        print(time_reg.text)
+                        res_dict['Time'] = time_reg.text
+                    except:
+                        print("Time can't get")
+                    for h in driver.find_elements_by_css_selector(
+                            "div.gl-MarketGroup"):
+                        try:
+                            s = e_wait(h, "div.gl-MarketGroupButton")
+                            print('s : ' + s.text)
+                        except:
+                            print("gl-MarketGroupButton not found")
+                            continue
+                        if s.text == "Fulltime Result":
+                            res_dict['Fulltime Result'] = {}
+                            e_wait(h, "div.gl-Participant")
+                            for m in h.find_elements_by_css_selector(
+                                    "div.gl-Participant"):
+                                try:
+                                    res_dict['Fulltime Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
+                                except:
+                                    print('Fulltime Result not showing now.')
+                        if s.text == "Half Time Result":
+                            res_dict['Half Time Result'] = {}
+                            for m in h.find_elements_by_css_selector(
+                                    "div.gl-Participant"):
+                                try:
+                                    res_dict['Half Time Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
+                                except:
+                                    print('Half Time Result not showing now.')
+                        if s.text == "1st Goal":
+                            res_dict['1st Goal'] = {}
+                            for m in h.find_elements_by_css_selector(
+                                    "div.gl-Participant"):
+                                try:
+                                    print("1st Goal\n" + m.text)
+                                except:
+                                    pass
+                                try:
+                                    res_dict['1st Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
+                                except:
+                                    print('1st Goal not showing now.')
+                        if s.text == "2nd Goal":
+                            res_dict['2nd Goal'] = {}
+                            for m in h.find_elements_by_css_selector(
+                                    "div.gl-Participant"):
+                                try:
+                                    print("2nd Goal\n" + m.text)
+                                except:
+                                    pass
+                                try:
+                                    res_dict['2nd Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
+                                except:
+                                    print('2nd Goal not showing now.')
+                        if s.text == "Alternative Match Goals":
+                            val = h.find_element_by_css_selector('div.gl-MarketLabel').text
+                            over = h.find_elements_by_css_selector('div.gl-MarketValues')[0].text
+                            under = h.find_elements_by_css_selector('div.gl-MarketValues')[1].text
+                            altlist = [[m , n, l] for m, n, l in zip(val.split('\n'), over.split('\n')[1:], under.split('\n')[1:])]
+                            print("Alternative Match Goals")
+                            print(altlist)
+                            res_dict['Alternative Match Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
                 # Wheel nums
-                e_wait(driver, "div.ml1-StatWheel_Team1Text")
-                for i, num in zip(('Attacks', 'Dangerous Attacks', 'Possession'), range(3)):
-                    try:
-                        element1 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team1Text")[num].text
-                        element2 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team2Text")[num].text
-                        print("Possession " + Possession1 + ' : ' + Possession2)
-                        res_dict['Possession'] = (Possession1, Possession2)
-                    except:
-                        print('There is no ' + str(i))
-                # Bar nums
-                for i, num in zip(('On Target', 'Off Target'), range(2)):
-                    try:    
-                        element1 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar_MiniBarValue-1")[num].text
-                        element2 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar_MiniBarValue-2")[num].text
-                        print(i + element1 + ':' + element2)
-                        res_dict[i] = (element1, element2)
-                    except:
-                        print('There is no ' + str(i))
-                All_Res_Dict[match_name].append(res_dict)
-                print(All_Res_Dict)
-                print('\nNew appending dict')
-                print(res_dict)
-                if count == roop_count:
-                    try:
-                        events = e_wait(driver, 'div.ipe-SummaryNativeScroller_Content')
-                        events_list = events.split('\n')
-                        events_dict[match_name] = events_list
-                    except:
-                        print("events list can't get.")
-                        pass
-                driver.back()
-                print("back now")
-            count += 1
+                    e_wait(driver, "div.ml1-StatWheel_Team1Text")
+                    for i, num in zip(('Attacks', 'Dangerous Attacks', 'Possession'), range(3)):
+                        try:
+                            element1 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team1Text")[num].text
+                            element2 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team2Text")[num].text
+                            print(i + " " + element1 + ' : ' + element2)
+                            res_dict[i] = (element1, element2)
+                        except:
+                            print('There is no ' + str(i))
+                    # Bar nums
+                    for i, num in zip(('On Target', 'Off Target'), range(2)):
+                        try:
+                            print(driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar"))
+                            element1 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar")[num].text.split('\n')[0]
+                            element2 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar")[num].text.split('\n')[1]
+                            print(i + element1 + ':' + element2)
+                            res_dict[i] = (element1, element2)
+                        except:
+                            print('There is no ' + str(i))
+                    if res_dict == {}:
+                        continue
+                    All_Res_Dict[match_name].append(res_dict)
+                    print(All_Res_Dict)
+                    print('\nNew appending dict')
+                    print(res_dict)
+                    if count == roop_count:
+                        try:
+                            events = e_wait(driver, 'div.ipe-SummaryNativeScroller_Content')
+                            events_list = events.split('\n')
+                            events_dict[match_name] = events_list
+                        except:
+                            print("events list can't get.")
+                            pass
+                    driver.back()
+                    print("back now")
+                    count += 1
         else:
             print('Waiting...')
             time.sleep(60)
     driver.quit()
-    return All_Res_Dict, events_dict_list
+    del_key_list = []
+    for key in All_Res_Dict:
+        if not All_Res_Dict[key]:
+            del_key_list.append(key)
+    for k in del_key_list:
+        del All_Res_Dict[k]
+    return All_Res_Dict, events_dict
 
     """"
     while True:
@@ -221,19 +238,6 @@ def scraping(driver, match_num, roop_count):
     """
 
 def ExcelWriter(All_Res_Dict, events_dict):
-    def merge(ws):
-        ws.merge_cells('A%s:A%s' % (1, 2), 'Merged Range')
-        ws.merge_cells('B%s:D%s' % (1, 1), 'Merged Range')
-        ws.merge_cells('E%s:G%s' % (1, 1), 'Merged Range')
-        ws.merge_cells('H%s:J%s' % (1, 1), 'Merged Range')
-        ws.merge_cells('K%s:M%s' % (2, 2), 'Merged Range')
-        ws.merge_cells('N%s:P%s' % (1, 1), 'Merged Range')
-        ws.merge_cells('Q%s:R%s' % (1, 1), 'Merged Range')
-        ws.merge_cells('S%s:T%s' % (1, 1), 'Merged Range')
-        ws.merge_cells('U%s:V%s' % (1, 1), 'Merged Range')
-        ws.merge_cells('X%s:X%s' % (1, 2), 'Merged Range')
-        ws.merge_cells('Y%s:AF%s' % (1, 2), 'Merged Range')
-
     def copy_range(fromsheet, tosheet, source_range, target_range):
         for i, j in zip(fromsheet[source_range],
                         tosheet[target_range]):
@@ -257,13 +261,15 @@ def ExcelWriter(All_Res_Dict, events_dict):
         ActiveWS = Target.get_sheet_by_name('Match_name')
         SummarySheet = Target.copy_worksheet(ActiveWS)
         SummarySheet.title = match[:31]
-        merge(SummarySheet)
         # complement header
-        name1_list = ('B', 'E', 'H', 'K', 'T', 'V', 'X')
-        name2_list = ('D', 'G', 'J', 'M', 'U', 'W', 'Y')
+        name1_list = ('B', 'E', 'H', 'K', 'T', 'V', 'X', 'Z', 'AB')
+        name2_list = ('D', 'G', 'J', 'M', 'U', 'W', 'Y', 'AA', 'AC')
         for col1, col2 in zip(name1_list, name2_list):
-            SummarySheet[col1 + '2'].value = match.split(' v ')[0]
-            SummarySheet[col2 + '2'].value = match.split(' v ')[1]
+            try:
+                SummarySheet[col1 + '2'].value = match.split(' v ')[0]
+                SummarySheet[col2 + '2'].value = match.split(' v ')[1]
+            except:
+                continue
         for info_dict in All_Res_Dict[match]:
             SummarySheet['A' + str(Row)].value = str(info_dict.get('Time', 'NoData'))
             for col in ['B', 'C', 'D']:
@@ -274,8 +280,8 @@ def ExcelWriter(All_Res_Dict, events_dict):
                     SummarySheet[col + str(Row)].value = 'NoData'
             for col in ['E', 'F', 'G']:
                 try:
-                    for key in info_dict.get('Halftime Result'):
-                        SummarySheet[col + str(Row)].value = str(info_dict['Halftime Result'][key])
+                    for key in info_dict.get('Half Time Result'):
+                        SummarySheet[col + str(Row)].value = str(info_dict['Half Time Result'][key])
                 except:
                     SummarySheet[col + str(Row)].value = 'NoData'
             for col in ['H', 'I', 'J']:
@@ -318,7 +324,7 @@ def ExcelWriter(All_Res_Dict, events_dict):
     Target.save('Report/Res_' + NowTime + '.xlsx')
 
 
-def e_wait(driver, element, max_time = 30):
+def e_wait(driver, element, max_time = 10):
     return_element = None
     try:
         return_element = WebDriverWait(driver, max_time).until(
