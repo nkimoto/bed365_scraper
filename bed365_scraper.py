@@ -10,6 +10,8 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoAlertPresentException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 import time
@@ -43,10 +45,10 @@ def scraping(driver, match_num, roop_count):
     events_dict = {}
     while count <= roop_count:
         # initiate
-        print('Now roop count is ' + str(count))    
-        first_term = e_wait(driver, 'div.li-InPlayClassificationButton_Header>' + \
-                'div.li-InPlayClassificationButton_HeaderLabel')
-        if not first_term:
+        print('Now roop count is ' + str(count))
+        first_term = x_wait(driver, "//div[contains(@class, 'li-InPlayClassificationButton_HeaderLabel')]")
+        print(first_term.text)
+        if first_term is None:
             while first_term:
                 first_term = e_wait(driver, 'div.li-InPlayClassificationButton_Header>' + \
                         'div.li-InPlayClassificationButton_HeaderLabel')
@@ -57,39 +59,49 @@ def scraping(driver, match_num, roop_count):
             print('Soccer term found!')
             soccer = e_wait(driver, 'div.li-InPlayClassification_League')
             leagues = soccer.find_elements_by_css_selector('div.li-InPlayLeague')
-            for i, league in enumerate(leagues):
-                game_x_list = []
+            for i in range(len(leagues)):
                 league_num = i + 1
-                e_wait(league, 'div.li-InPlayEvent')
-                league_matchs = league.find_elements_by_css_selector(
-                        'div.li-InPlayEvent')
-                if len(league_matchs) == 1:
-                    game_x = "///../../../../../div[2]/div[%s]/div[2]/div/div[1]" %(
-                                    league_num)
-                    game_x_list.append(game_x)
-                elif len(league_matchs) > 1:
-                    for m, match in enumerate(league_matchs):
-                        match_num = m + 1
-                        game_x = "///../../../../../../div[2]/div[%s]/div[2]/div[%s]/div[1]" %(
-                                        league_num, match_num)
-                        game_x_list.append(game_x)
-                for game_x in game_x_list:
+                game_x_list = []
+                if len(leagues) == 1:
+                    soccer = e_wait(driver, 'div.li-InPlayClassification_League')
+                    league = x_wait(soccer, "//div[@class='li-InPlayLeague ']")
+                else:
+                    soccer = e_wait(driver, 'div.li-InPlayClassification_League')
+                    soccer.find_elements_by_xpath("//div[@class='li-InPlayLeague ' and position()=2]")
+                    league = x_wait(soccer, "//div[@class='li-InPlayLeague ' and position()=%s]"%league_num)
+                league_matchs = league.find_elements_by_css_selector('div.li-InPlayEvent')       
+                print(league_matchs)
+                for j in range(len(league_matchs)):
+                    if len(league_matchs) == 1:
+                        game_x = "//div[@class='li-InPlayLeague ' and position()=%s]/div[2]/div/div[@class='li-InPlayEventHeader ']/div[1]/div[1]"%league_num
+#                        game_x_list.append(game_x)
+                    elif len(league_matchs) > 1:
+                        match_num = j + 1
+                        game_x = "//div[@class='li-InPlayLeague ' and position()=%s]/div[2]/div[@class='li-InPlayEvent ' and position()=%s]/div[@class='li-InPlayEventHeader ']/div[1]/div[1]" %(league_num, match_num)
+#                            game_x_list.append(game_x)
+#                    for game_x in game_x_list:
                     print(game_x)
                     c = 0
+#                    game = WebDriverWait(league, 50).until(
+#                            EC.element_to_be_clickable((By.XPATH, "//div[1]/div/div[2]/div[1]/div/div[2]/div[2]/div/div/div[5]/div/div[3]/div[2]/div[7]/div[2]/div[1]/div/div[1]/div[1]"
+# )))
                     while c < 5:
                         try:
-                            game = c_wait(driver, game_x)
+                            print('league_num = ' + str(league_num))
+                            game = WebDriverWait(league, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, game_x)))
+                            game = c_wait(league, game_x)
                             match_name = str(game.text.split('\n')[0])
                             game.click()
                             break
                         except: # match can't get : not exist or not visible
-                            print(game)
+                            print(game_x)
                             print(' does not clickable...\nscroll page!')
                             driver.execute_script('window.scrollBy(0,300);')
                             c += 1
                     else: # not exist
                         print('!!!!!!!!!!')
-                        continue
+                        break
                     if match_name not in All_Res_Dict:
                         try:
                             print('====================' + match_name + ' start scraping!====================')
@@ -347,11 +359,11 @@ def c_wait(driver, element, max_time = 10):
     return return_element
 
 
-def x_wait(driver, element, max_time = 10):
+def x_wait(driver, element, max_time = 30):
     return_element = None
     try:
         return_element = WebDriverWait(driver, max_time).until(
-                EC.element_of_element_located((By.XPATH, element))
+                EC.presence_of_element_located((By.XPATH, element))
                 )
     except:
         print(element + " can't get!")
