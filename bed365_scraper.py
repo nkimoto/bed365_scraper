@@ -195,9 +195,9 @@ def scraping(driver, match_num, roop_count):
                     if res_dict == {}:
                         continue
                     All_Res_Dict[match_name].append(res_dict)
-                    print(All_Res_Dict)
+#                    print(All_Res_Dict)
                     print('\nNew appending dict')
-                    print(res_dict)
+#                    print(res_dict)
                     if count == roop_count:
                         try:
                             events = e_wait(driver, 'div.ipe-SummaryNativeScroller_Content')
