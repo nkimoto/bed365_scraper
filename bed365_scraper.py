@@ -10,6 +10,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import StaleElementReferenceException
 from selenium.common.exceptions import WebDriverException
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
@@ -42,6 +43,7 @@ def scraping(driver, match_num, roop_count):
     SCRAPING CODE
     RETURN : DICT LIST
     """
+    NowTime = datetime.datetime.now()
     count = 1
     All_Res_Dict = {}
     events_dict = {}
@@ -70,20 +72,19 @@ def scraping(driver, match_num, roop_count):
                     league = x_wait(soccer, "//div[@class='li-InPlayLeague ']")
                 else:
                     soccer = e_wait(driver, 'div.li-InPlayClassification_League')
-                    soccer.find_elements_by_xpath("//div[@class='li-InPlayLeague ' and position()=2]")
                     league = x_wait(soccer, "//div[@class='li-InPlayLeague ' and position()=%s]"%league_num)
                 try:
                     league_matchs = league.find_elements_by_css_selector('div.li-InPlayEvent')       
-                except (NoSuchElementException, TimeoutException):
+                except Exception:
                     continue
                 print(league_matchs)
                 for j in range(len(league_matchs)):
                     if len(league_matchs) == 1:
-                        game_x = "//div[contains(@class, 'li-InPlayClassification ') and contains(., 'Soccer')]//div[@class='li-InPlayLeague ' and position()=%s]/div[2]/div/div[@class='li-InPlayEventHeader ']/div[1]/div[1]"%league_num
+                        game_x = "//div[contains(@class, 'li-InPlayClassification ') and contains(., 'Soccer')]//div[@class='li-InPlayLeague ' and position()=%s]/div[2]/div/div[contains(@class, 'li-InPlayEventHeader')]/div[1]/div[1]"%league_num
                         game_x_list.append(game_x)
                     elif len(league_matchs) > 1:
                         match_num = j + 1
-                        game_x = "//div[contains(@class, 'li-InPlayClassification ') and contains(., 'Soccer')]//div[@class='li-InPlayLeague ' and position()=%s]/div[2]/div[@class='li-InPlayEvent ' and position()=%s]/div[@class='li-InPlayEventHeader ']/div[1]/div[1]" %(league_num, match_num)
+                        game_x = "//div[contains(@class, 'li-InPlayClassification ') and contains(., 'Soccer')]//div[@class='li-InPlayLeague ' and position()=%s]/div[2]/div[contains(@class, 'li-InPlayEvent') and position()=%s]/div[@class='li-InPlayEventHeader ']/div[1]/div[1]" %(league_num, match_num)
                     game_x_list.append(game_x)
                     for game_x in game_x_list:
                         print(game_x)
@@ -116,14 +117,14 @@ def scraping(driver, match_num, roop_count):
                         time_reg  = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
                         print(time_reg.text)
                         res_dict['Time'] = time_reg.text
-                    except AttributeError:
+                    except Exception:
                         print("Time can't get")
                     for h in driver.find_elements_by_css_selector(
                             "div.gl-MarketGroup"):
                         try:
                             s = e_wait(h, "div.gl-MarketGroupButton")
                             print('s : ' + s.text)
-                        except (NoSuchElementException, AttributeError):
+                        except Exception:
                             print("gl-MarketGroupButton not found")
                             continue
                         if s.text == "First Half Goals":
@@ -142,7 +143,7 @@ def scraping(driver, match_num, roop_count):
                                     "div.gl-Participant"):
                                 try:
                                     res_dict['Fulltime Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                                except (AttributeError, IndexError):
+                                except Exception:
                                     print('Fulltime Result not showing now.')
                         if s.text == "Half Time Result":
                             res_dict['Half Time Result'] = {}
@@ -150,7 +151,7 @@ def scraping(driver, match_num, roop_count):
                                     "div.gl-Participant"):
                                 try:
                                     res_dict['Half Time Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                                except (AttributeError, IndexError):
+                                except Exception:
                                     print('Half Time Result not showing now.')
                         if s.text == "1st Goal":
                             res_dict['1st Goal'] = {}
@@ -158,11 +159,11 @@ def scraping(driver, match_num, roop_count):
                                     "div.gl-Participant"):
                                 try:
                                     print("1st Goal\n" + m.text)
-                                except UnicodeEncodeError:
+                                except Exception:
                                     pass
                                 try:
                                     res_dict['1st Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                                except AttributeError:
+                                except Exception:
                                     print('1st Goal not showing now.')
                         if s.text == "2nd Goal":
                             res_dict['2nd Goal'] = {}
@@ -170,20 +171,24 @@ def scraping(driver, match_num, roop_count):
                                     "div.gl-Participant"):
                                 try:
                                     print("2nd Goal\n" + m.text)
-                                except UnicodeEncodeError:
+                                except Exception:
                                     pass
                                 try:
                                     res_dict['2nd Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                                except (AttributeError, IndexErrpr):
+                                except Exception:
                                     print('2nd Goal not showing now.')
                         if s.text == "Alternative Match Goals":
-                            val = e_wait(h, 'div.gl-MarketLabel').text
-                            over = h.find_elements_by_css_selector('div.gl-MarketValues')[0].text
-                            under = h.find_elements_by_css_selector('div.gl-MarketValues')[1].text
-                            altlist = [[m , n, l] for m, n, l in zip(val.split('\n'), over.split('\n')[1:], under.split('\n')[1:])]
-                            print("Alternative Match Goals")
-                            print(altlist)
-                            res_dict['Alternative Match Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
+                            try:
+                                val = e_wait(h, 'div.gl-MarketLabel').text
+                                over = h.find_elements_by_css_selector('div.gl-MarketValues')[0].text
+                                under = h.find_elements_by_css_selector('div.gl-MarketValues')[1].text
+                                altlist = [[m , n, l] for m, n, l in zip(val.split('\n'), over.split('\n')[1:], under.split('\n')[1:])]
+                                print("Alternative Match Goals")
+                                print(altlist)
+                                res_dict['Alternative Match Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
+                            except Exception:
+                                print('Alternative Match Goals not showing now.')
+
                 # Wheel nums
                     e_wait(driver, "div.ml1-StatWheel_Team1Text")
                     for i, num in zip(('Attacks', 'Dangerous Attacks', 'Possession'), range(3)):
@@ -232,7 +237,8 @@ def scraping(driver, match_num, roop_count):
         else:
             print('Waiting...')
             time.sleep(60)
-
+        Nowtime = datetime.datetime.now()
+ 
     driver.quit()
     del_key_list = []
     for key in All_Res_Dict:
@@ -280,7 +286,7 @@ def ExcelWriter(All_Res_Dict, events_dict):
 
     try:
         os.mkdir('Report')
-    except Exception:
+    except FileExistsError:
         print("Result is included in Report directory.")
         pass
     Template = './Template/Template.xlsx'
@@ -359,7 +365,7 @@ def ExcelWriter(All_Res_Dict, events_dict):
     ActiveWS = Target.get_sheet_by_name('Match_name')
     Target.remove_sheet(ActiveWS)
     # Save
-    Target.save('Report/Res_' + NowTime + '.xlsx')
+    Target.save('Report/Res_' + FirstTime.strftime('%Y%m%d%H%M%S') + '.xlsx')
 
 
 def e_wait(driver, element, max_time = 10):
@@ -368,7 +374,7 @@ def e_wait(driver, element, max_time = 10):
         return_element = WebDriverWait(driver, max_time).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, element))
                 )
-    except (WebDriverException, NoSuchElementException, TimeoutException):
+    except Exception:
         print(element + " can't get!")
         pass
     return return_element
@@ -379,7 +385,7 @@ def c_wait(driver, element, max_time = 10):
         return_element = WebDriverWait(driver, max_time).until(
                 EC.element_to_be_clickable((By.XPATH, element))
                 )
-    except (WebDriverException, NoSuchElementException, TimeoutException):
+    except Exception:
         print(element + " can't get!")
         pass
     return return_element
@@ -391,7 +397,7 @@ def x_wait(driver, element, max_time = 30):
         return_element = WebDriverWait(driver, max_time).until(
                 EC.presence_of_element_located((By.XPATH, element))
                 )
-    except (WebDriverException, NoSuchElementException, TimeoutException):
+    except Exception:
         print(element + " can't get!")
         pass
     return return_element
@@ -403,7 +409,7 @@ def v_wait(driver, element, max_time = 10):
         return_element = WebDriverWait(driver, max_time).until(
                 EC.visibility_of_element_located((By.XPATH, element))
                 )
-    except (WebDriverException, NoSuchElementException, TimeoutException):
+    except Exception:
         print(element + " can't get!")
         pass
     return return_element
@@ -458,7 +464,7 @@ def main():
 
 
 if __name__ == '__main__':
-    NowTime = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    FirstTime = datetime.datetime.now()
     args = Argument_Parser()
     waittime = args.wait
     main()
