@@ -24,7 +24,7 @@ import datetime
 def set_up(url):
     options = Options()
 #    options.add_argument('--headless')
-    options.binary_location = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+#    options.binary_location = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
     options.add_argument('--disable-gpu')
     prefs = {"profile.default_content_setting_values.notifications" : 2}
     options.add_experimental_option("prefs",prefs)
@@ -34,26 +34,44 @@ def set_up(url):
     driver = webdriver.Chrome(chrome_options=options)
     driver.get(url)
     print('Searching in ' + url)
-    time.sleep(5)
+    time.sleep(10)
     driver.find_elements_by_tag_name("a")[18].click()
     return driver
 
-def scraping(driver, match_num, roop_count):
+def get_url(browser, url):
+    driver.get(url)
+    time.sleep(10)
+
+def make_tab(driver):
+    driver.find_element_by_tag_name('body').send_keys(Keys.COMMAND + 't')
+
+def delete_tab(driver):
+    driver.find_element_by_tag_name('body').send_keys(Keys.COMMAND + 'w') 
+
+def change_tab(driver):
+    driver.find_element_by_tag_name('body').send_keys(Keys. CONTROL + Keys.SHIFT) 
+
+def scraping(driver, loop_count):
     """
     SCRAPING CODE
     RETURN : DICT LIST
     """
     NowTime = datetime.datetime.now()
     TimeDelta = time_delta(NowTime, FirstTime)
-    count = 1
+    count = 0
     All_Res_Dict = {}
     events_dict = {}
-    condition = count <= roop_count
-    if args.time_h:
-        condition = TimeDelta <= args.time_h
-    while condition:
+    while True:
+        if args.time_h:
+            if TimeDelta >= args.time_h:
+                break
+        else:
+            if count >= loop_count:
+                break
+    
         # initiate
-        print('Now roop count is ' + str(count))
+        print('Loop Count : ' + str(count))
+        print('Passed Time : ' + str(TimeDelta) + " h")
         first_term = x_wait(driver, "//div[contains(@class, 'li-InPlayClassificationButton_HeaderLabel')]")
         while first_term is None:
             first_term = e_wait(driver, 'div.li-InPlayClassificationButton_Header>' + \
@@ -81,7 +99,6 @@ def scraping(driver, match_num, roop_count):
                     league_matchs = league.find_elements_by_css_selector('div.li-InPlayEvent')       
                 except Exception:
                     continue
-                print(league_matchs)
                 for j in range(len(league_matchs)):
                     if len(league_matchs) == 1:
                         game_x = "//div[contains(@class, 'li-InPlayClassification ') and contains(., 'Soccer')]//div[@class='li-InPlayLeague ' and position()=%s]/div[2]/div/div[contains(@class, 'li-InPlayEventHeader')]/div[1]/div[1]"%league_num
@@ -90,19 +107,16 @@ def scraping(driver, match_num, roop_count):
                         match_num = j + 1
                         game_x = "//div[contains(@class, 'li-InPlayClassification ') and contains(., 'Soccer')]//div[@class='li-InPlayLeague ' and position()=%s]/div[2]/div[contains(@class, 'li-InPlayEvent') and position()=%s]/div[@class='li-InPlayEventHeader ']/div[1]/div[1]" %(league_num, match_num)
                     game_x_list.append(game_x)
-                    for game_x in game_x_list:
-                        print(game_x)
                     c = 0
                     while c < 5:
                         try:
-                            print('roop count : ' + str(count))
+                            print('loop count : ' + str(count))
                             print('league num : ' + str(league_num))
                             game = c_wait(driver, game_x)
                             match_name = str(game.text.split('\n')[0])
                             game.click()
                             break
                         except Exception: # match can't get : not exist or not visible
-                            print(game_x)
                             print(' does not clickable...\nscroll page!')
                             driver.execute_script('window.scrollBy(0,300);')
                             c += 1
@@ -110,140 +124,147 @@ def scraping(driver, match_num, roop_count):
                         driver.execute_script('window.scrollTo(0,0);')
                         print('!!!!!!!!!!')
                         break
-                    if match_name not in All_Res_Dict:
-                        try:
-                            print('====================' + match_name + ' start scraping!====================')
-                        except UnicodeError:
-                            print('====================start scraping!===========================')
-                        All_Res_Dict[match_name] = []
-                    res_dict = {}
                     try:
-                        time_reg  = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
-                        print(time_reg.text)
-                        res_dict['Time'] = time_reg.text
-                    except Exception:
-                        print("Time can't get")
-                    for h in driver.find_elements_by_css_selector(
-                            "div.gl-MarketGroup"):
-                        try:
-                            s = e_wait(h, "div.gl-MarketGroupButton")
-                            print('s : ' + s.text)
-                        except Exception:
-                            print("gl-MarketGroupButton not found")
-                            continue
-                        if s.text == "First Half Goals":
-                            res_dict['First Half Goals'] = {}
-                            val = e_wait(h, 'div.gl-MarketLabel').text
-                            over = h.find_elements_by_css_selector('div.gl-MarketValues')[0].text
-                            under = h.find_elements_by_css_selector('div.gl-MarketValues')[1].text
-                            altlist = [[m , n, l] for m, n, l in zip(val.split('\n'), over.split('\n')[1:], under.split('\n')[1:])]
-                            print("First Half Goals")
-                            print(altlist)
-                            res_dict['First Half Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
-                        if s.text == "Fulltime Result":
-                            res_dict['Fulltime Result'] = {}
-                            e_wait(h, "div.gl-Participant")
-                            for m in h.find_elements_by_css_selector(
-                                    "div.gl-Participant"):
-                                try:
-                                    res_dict['Fulltime Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                                except Exception:
-                                    print('Fulltime Result not showing now.')
-                        if s.text == "Half Time Result":
-                            res_dict['Half Time Result'] = {}
-                            for m in h.find_elements_by_css_selector(
-                                    "div.gl-Participant"):
-                                try:
-                                    res_dict['Half Time Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                                except Exception:
-                                    print('Half Time Result not showing now.')
-                        if s.text == "1st Goal":
-                            res_dict['1st Goal'] = {}
-                            for m in h.find_elements_by_css_selector(
-                                    "div.gl-Participant"):
-                                try:
-                                    print("1st Goal\n" + m.text)
-                                except Exception:
-                                    pass
-                                try:
-                                    res_dict['1st Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                                except Exception:
-                                    print('1st Goal not showing now.')
-                        if s.text == "2nd Goal":
-                            res_dict['2nd Goal'] = {}
-                            for m in h.find_elements_by_css_selector(
-                                    "div.gl-Participant"):
-                                try:
-                                    print("2nd Goal\n" + m.text)
-                                except Exception:
-                                    pass
-                                try:
-                                    res_dict['2nd Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                                except Exception:
-                                    print('2nd Goal not showing now.')
-                        if s.text == "Alternative Match Goals":
+                        if match_name not in All_Res_Dict:
                             try:
+                                print('====================' + match_name + ' start scraping!====================')
+                            except UnicodeError:
+                                print('====================start scraping!===========================')
+                            All_Res_Dict[match_name] = []
+                        res_dict = {}
+                        try:
+                            time_reg  = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
+                            res_dict['Time'] = time_reg.text
+                        except Exception:
+                            print("Time can't get")
+                        for h in driver.find_elements_by_css_selector(
+                                "div.gl-MarketGroup"):
+                            try:
+                                s = e_wait(h, "div.gl-MarketGroupButton")
+                                print('s : ' + s.text)
+                            except Exception:
+                                print("gl-MarketGroupButton not found")
+                                continue
+                            if s.text == "First Half Goals":
+                                res_dict['First Half Goals'] = {}
                                 val = e_wait(h, 'div.gl-MarketLabel').text
                                 over = h.find_elements_by_css_selector('div.gl-MarketValues')[0].text
                                 under = h.find_elements_by_css_selector('div.gl-MarketValues')[1].text
                                 altlist = [[m , n, l] for m, n, l in zip(val.split('\n'), over.split('\n')[1:], under.split('\n')[1:])]
-                                print("Alternative Match Goals")
+                                print("First Half Goals")
                                 print(altlist)
-                                res_dict['Alternative Match Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
+                                res_dict['First Half Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
+                            if s.text == "Fulltime Result":
+                                res_dict['Fulltime Result'] = {}
+                                e_wait(h, "div.gl-Participant")
+                                for m in h.find_elements_by_css_selector(
+                                        "div.gl-Participant"):
+                                    try:
+                                        res_dict['Fulltime Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
+                                    except Exception:
+                                        print('Fulltime Result not showing now.')
+                            if s.text == "Half Time Result":
+                                res_dict['Half Time Result'] = {}
+                                for m in h.find_elements_by_css_selector(
+                                        "div.gl-Participant"):
+                                    try:
+                                        res_dict['Half Time Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
+                                    except Exception:
+                                        print('Half Time Result not showing now.')
+                            if s.text == "1st Goal":
+                                res_dict['1st Goal'] = {}
+                                for m in h.find_elements_by_css_selector(
+                                        "div.gl-Participant"):
+                                    try:
+                                        print("1st Goal\n" + m.text)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        res_dict['1st Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
+                                    except Exception:
+                                        print('1st Goal not showing now.')
+                            if s.text == "2nd Goal":
+                                res_dict['2nd Goal'] = {}
+                                for m in h.find_elements_by_css_selector(
+                                        "div.gl-Participant"):
+                                    try:
+                                        print("2nd Goal\n" + m.text)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        res_dict['2nd Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
+                                    except Exception:
+                                        print('2nd Goal not showing now.')
+                            if s.text == "Alternative Match Goals":
+                                try:
+                                    val = e_wait(h, 'div.gl-MarketLabel').text
+                                    over = h.find_elements_by_css_selector('div.gl-MarketValues')[0].text
+                                    under = h.find_elements_by_css_selector('div.gl-MarketValues')[1].text
+                                    altlist = [[m , n, l] for m, n, l in zip(val.split('\n'), over.split('\n')[1:], under.split('\n')[1:])]
+                                    print("Alternative Match Goals")
+                                    print(altlist)
+                                    res_dict['Alternative Match Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
+                                except Exception:
+                                    print('Alternative Match Goals not showing now.')
+ 
+                    # Wheel nums
+                        right_button = c_wait(driver, "//div[contains(@class, 'lv-ButtonBar_MatchLive')]")
+                        right_button.click()
+                        e_wait(driver, "div.ml1-StatWheel_Team1Text")
+                        for i, num in zip(('Attacks', 'Dangerous Attacks', 'Possession'), range(3)):
+                            try:
+                                element1 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team1Text")[num].text
+                                element2 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team2Text")[num].text
+                                print(i + " " + element1 + ' : ' + element2)
+                                res_dict[i] = (element1, element2)
                             except Exception:
-                                print('Alternative Match Goals not showing now.')
-
-                # Wheel nums
-                    e_wait(driver, "div.ml1-StatWheel_Team1Text")
-                    for i, num in zip(('Attacks', 'Dangerous Attacks', 'Possession'), range(3)):
+                                print('There is no ' + str(i))
+                        # Bar nums
+                        for i, num in zip(('On Target', 'Off Target'), range(2)):
+                            try:
+                                print(driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar"))
+                                element1 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar")[num].text.split('\n')[0]
+                                element2 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar")[num].text.split('\n')[1]
+                                print(i + element1 + ':' + element2)
+                                res_dict[i] = (element1, element2)
+                            except Exception:
+                                print('There is no ' + str(i))
+                        if res_dict == {}:
+                            continue
+                        All_Res_Dict[match_name].append(res_dict)
                         try:
-                            element1 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team1Text")[num].text
-                            element2 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team2Text")[num].text
-                            print(i + " " + element1 + ' : ' + element2)
-                            res_dict[i] = (element1, element2)
-                        except Exception:
-                            print('There is no ' + str(i))
-                    # Bar nums
-                    for i, num in zip(('On Target', 'Off Target'), range(2)):
+                            print(All_Res_Dict)
+                        except UnicodeError:
+                            print("All_Res_Dict can't show up")
+                        print('\nNew appending dict')
                         try:
-                            print(driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar"))
-                            element1 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar")[num].text.split('\n')[0]
-                            element2 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar")[num].text.split('\n')[1]
-                            print(i + element1 + ':' + element2)
-                            res_dict[i] = (element1, element2)
-                        except Exception:
-                            print('There is no ' + str(i))
-                    if res_dict == {}:
+                            print(res_dict)
+                        except UnicodeError:
+                            print("res_dict can't show up")
+                        if count == loop_count:
+                            try:
+                                delta = x_wait(driver, "//div[@class='ipe-SummaryButton_Icon']")
+                                delta.click()
+                                events = x_wait(driver, "//div[contains(@class, 'ipe-SummaryNativeScroller_Content')]")
+                                events_list = events.text.split('\n')
+                                print(events_list)
+                                events_dict[match_name] = events_list
+                            except Exception:
+                                print("events list can't get.")
+                        driver.back()
+                        print("back now")
+                    except:
+                        print('Error occured!')
+                        driver.back()
+                        print('back now')
+                        count += 1
                         continue
-                    All_Res_Dict[match_name].append(res_dict)
-                    try:
-                        print(All_Res_Dict)
-                    except UnicodeError:
-                        print("All_Res_Dict can't show up")
-                    print('\nNew appending dict')
-                    try:
-                        print(res_dict)
-                    except UnicodeError:
-                        print("res_dict can't show up")
-                    if count == roop_count:
-                        try:
-                            delta = x_wait(driver, "//div[@class='ipe-SummaryButton_Icon']")
-                            delta.click()
-                            events = x_wait(driver, "//div[contains(@class, 'ipe-SummaryNativeScroller_Content')]")
-                            events_list = events.text.split('\n')
-                            print(events_list)
-                            events_dict[match_name] = events_list
-                        except Exception:
-                            print("events list can't get.")
-                    driver.back()
-                    print("back now")
-            count += 1
+                count += 1
         else:
             print('Waiting...')
             time.sleep(60)
-        Nowtime = datetime.datetime.now()
-        TimeDelta = time_delta(FirstTime, NowTime)
-
+        NowTime = datetime.datetime.now()
+        TimeDelta = time_delta(NowTime, FirstTime)
     driver.quit()
     del_key_list = []
     for key in All_Res_Dict:
@@ -381,7 +402,7 @@ def time_delta(time_a, time_b):
     time_delta_h = time_delta_sec / 3600
     return time_delta_h
 
-def e_wait(driver, element, max_time = 10):
+def e_wait(driver, element, max_time = 20):
     return_element = None
     try:
         return_element = WebDriverWait(driver, max_time).until(
@@ -392,7 +413,7 @@ def e_wait(driver, element, max_time = 10):
         pass
     return return_element
 
-def c_wait(driver, element, max_time = 10):
+def c_wait(driver, element, max_time = 15):
     return_element = None
     try:
         return_element = WebDriverWait(driver, max_time).until(
@@ -416,11 +437,11 @@ def x_wait(driver, element, max_time = 30):
     return return_element
 
 
-def v_wait(driver, element, max_time = 10):
+def t_wait(driver, element, max_time = 10):
     return_element = None
     try:
         return_element = WebDriverWait(driver, max_time).until(
-                EC.visibility_of_element_located((By.XPATH, element))
+                EC.presence_of_element_located((By.CSS_SELECTOR, element))
                 )
     except Exception:
         print(element + " can't get!")
@@ -448,20 +469,14 @@ def Argument_Parser():
             dest='time_h',
             default=None,
             type=float,
-            help="specify waiting time with option '-t'",
+            help="specify run time with option '-t'",
             )
-    parser.add_argument('-mn', '--matchnum',
+    parser.add_argument('-lc', '--loop_count',
             action='store',
-            dest='mn',
-            default=3,
-            type=int,
-            help="specify match number with option '-mn'")
-    parser.add_argument('-rc', '--roop_count',
-            action='store',
-            dest='r_count',
+            dest='l_count',
             default=10,
             type=int,
-            help="specify roop count with option '-rc'")
+            help="specify loop count with option '-lc'")
 
  
     args = parser.parse_args()
@@ -471,7 +486,7 @@ def Argument_Parser():
 def main():
     print('bed365_scraper START!!')
     driver = set_up('https://www.bet365.com/home/')
-    All_Res_Dict, events_dict = scraping(driver, args.mn, args.r_count)
+    All_Res_Dict, events_dict = scraping(driver, args.l_count)
     ExcelWriter(All_Res_Dict, events_dict)
     print('END!!')
 
