@@ -370,7 +370,7 @@ def e_wait(driver, element, max_time = 10):
         return_element = WebDriverWait(driver, max_time).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, element))
                 )
-    except (NoSuchElementException, TimeoutException):
+    except (WebDriverException, NoSuchElementException, TimeoutException):
         print(element + " can't get!")
         pass
     return return_element
@@ -381,7 +381,7 @@ def c_wait(driver, element, max_time = 10):
         return_element = WebDriverWait(driver, max_time).until(
                 EC.element_to_be_clickable((By.XPATH, element))
                 )
-    except (NoSuchElementException, TimeoutException):
+    except (WebDriverException, NoSuchElementException, TimeoutException):
         print(element + " can't get!")
         pass
     return return_element
@@ -393,7 +393,7 @@ def x_wait(driver, element, max_time = 30):
         return_element = WebDriverWait(driver, max_time).until(
                 EC.presence_of_element_located((By.XPATH, element))
                 )
-    except (NoSuchElementException, TimeoutException):
+    except (WebDriverException, NoSuchElementException, TimeoutException):
         print(element + " can't get!")
         pass
     return return_element
@@ -405,7 +405,7 @@ def v_wait(driver, element, max_time = 10):
         return_element = WebDriverWait(driver, max_time).until(
                 EC.visibility_of_element_located((By.XPATH, element))
                 )
-    except NoSuchElementException:
+    except (WebDriverException, NoSuchElementException, TimeoutException):
         print(element + " can't get!")
         pass
     return return_element
