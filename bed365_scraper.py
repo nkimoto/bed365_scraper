@@ -34,7 +34,7 @@ def set_up(url):
     driver = webdriver.Chrome(chrome_options=options)
     driver.get(url)
     print('Searching in ' + url)
-    time.sleep(waittime)
+    time.sleep(5)
     driver.find_elements_by_tag_name("a")[18].click()
     return driver
 
@@ -44,10 +44,14 @@ def scraping(driver, match_num, roop_count):
     RETURN : DICT LIST
     """
     NowTime = datetime.datetime.now()
+    TimeDelta = time_delta(NowTime, FirstTime)
     count = 1
     All_Res_Dict = {}
     events_dict = {}
-    while count <= roop_count:
+    condition = count <= roop_count
+    if args.time_h:
+        condition = TimeDelta <= args.time_h
+    while condition:
         # initiate
         print('Now roop count is ' + str(count))
         first_term = x_wait(driver, "//div[contains(@class, 'li-InPlayClassificationButton_HeaderLabel')]")
@@ -55,7 +59,7 @@ def scraping(driver, match_num, roop_count):
             first_term = e_wait(driver, 'div.li-InPlayClassificationButton_Header>' + \
             'div.li-InPlayClassificationButton_HeaderLabel')
             print("First term can't get in the page. Waiting...")
-            driver.refresh()
+            driver.back()
             time.sleep(30)
         else:
             pass
@@ -238,7 +242,8 @@ def scraping(driver, match_num, roop_count):
             print('Waiting...')
             time.sleep(60)
         Nowtime = datetime.datetime.now()
- 
+        TimeDelta = time_delta(FirstTime, NowTime)
+
     driver.quit()
     del_key_list = []
     for key in All_Res_Dict:
@@ -367,6 +372,14 @@ def ExcelWriter(All_Res_Dict, events_dict):
     # Save
     Target.save('Report/Res_' + FirstTime.strftime('%Y%m%d%H%M%S') + '.xlsx')
 
+def time_delta(time_a, time_b):
+    """
+    calculate time_a - time_b(hour)
+    """
+    time_delta = time_a - time_b
+    time_delta_sec = time_delta.total_seconds()
+    time_delta_h = time_delta_sec / 3600
+    return time_delta_h
 
 def e_wait(driver, element, max_time = 10):
     return_element = None
@@ -430,11 +443,11 @@ def Argument_Parser():
     """
     parser = ArgumentParser(
             description='bed365_scraper.py')
-    parser.add_argument('-t', '--waittime',
+    parser.add_argument('-t', '--time_h',
             action='store',
-            dest='wait',
-            default=15,
-            type=int,
+            dest='time_h',
+            default=None,
+            type=float,
             help="specify waiting time with option '-t'",
             )
     parser.add_argument('-mn', '--matchnum',
@@ -466,5 +479,4 @@ def main():
 if __name__ == '__main__':
     FirstTime = datetime.datetime.now()
     args = Argument_Parser()
-    waittime = args.wait
     main()
