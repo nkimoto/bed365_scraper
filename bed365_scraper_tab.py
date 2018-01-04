@@ -25,7 +25,7 @@ import datetime
 def set_up(url):
     options = Options()
 #    options.add_argument('--headless')
-#    options.binary_location = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+    options.binary_location = "C:\Program Files (x86)\Google\Chrome\Application\Chrome.exe"
     options.add_argument('--disable-gpu')
     prefs = {"profile.default_content_setting_values.notifications" : 2}
     options.add_experimental_option("prefs",prefs)
@@ -115,7 +115,7 @@ def get_games(driver):
     else:
         print('Waiting...')
         time.sleep(60)
-        get_data(driver)
+        get_games(driver)
 
 def crawl_tabs_setup(driver, game_list, now_scraping  = []):
     del_list = []
@@ -137,7 +137,7 @@ def crawl_tabs_setup(driver, game_list, now_scraping  = []):
 
 
 def crawl_tabs_getdata(driver, game_list):
-    for i, game_name in zip(range(len(driver.window_handles[1:])), [j[1] for j in game_list]):
+    for i, game_name in zip(range(len(driver.window_handles[1:])), [j[0] for j in game_list]):
         print(len(driver.window_handles[1:]), len(game_list))
         change_tab(driver, i + 1)
         time.sleep(3)
@@ -161,7 +161,7 @@ def get_data(driver, match_name):
     res_dict = {}
     try:
         time_reg  = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
-        if int(time_reg[0]) == 9:
+        if int(time_reg.text[0]) == 9:
             end_flag += 1
             print('break!!')
         res_dict['Time'] = time_reg.text
@@ -362,7 +362,7 @@ def ExcelWriter(AllResDict, EventsDict):
             try:
                 SummarySheet[col1 + '2'].value = match.split(' v ')[0]
                 SummarySheet[col2 + '2'].value = match.split(' v ')[1]
-            except (KeyError, AttributeError):
+            except Exception:
                 continue
         for info_dict in AllResDict[match]:
             SummarySheet['A' + str(Row)].value = str(info_dict.get('Time', 'NoData'))
