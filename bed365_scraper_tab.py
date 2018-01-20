@@ -45,7 +45,6 @@ def get_url(browser, url):
 
 def get_with_tab(d, element):
     main_window = d.current_window_handle
-    print(element)
     element.send_keys(Keys.COMMAND + Keys.RETURN)
     d.switch_to.window(d.window_handles[1])
     time.sleep(10)
@@ -61,10 +60,14 @@ def delete_tab(driver):
     driver.close()
 
 def change_tab(driver, n):
+    try:
+        main_window = driver.current_window_handle
+    except:
+        pass
     driver.switch_to.window(driver.window_handles[n])
     return driver
 
-def get_games(driver):
+def get_gamesx(driver):
     """
     SCRAPING CODE
     RETURN : DICT LIST
@@ -76,7 +79,7 @@ def get_games(driver):
         print('Soccer term found!')
         soccer = e_wait(driver, 'div.li-InPlayClassification_League')
         leagues = soccer.find_elements_by_css_selector('div.li-InPlayLeague')
-        game_list = []
+        game_x_list = []
         for i in range(len(leagues)):
             league_num = i + 1
             if len(leagues) == 1:
@@ -95,85 +98,103 @@ def get_games(driver):
                 elif len(league_matchs) > 1:
                     match_num = j + 1
                     game_x = "//div[contains(@class, 'li-InPlayClassification ') and contains(., 'Soccer')]//div[@class='li-InPlayLeague ' and position()=%s]/div[2]/div[contains(@class, 'li-InPlayEvent') and position()=%s]/div[@class='li-InPlayEventHeader ']/div[1]/div[1]" %(league_num, match_num)
-                c = 0
-                while c < 5:
-                    try:
-                        game = x_wait(driver, game_x)
-                        match_name = str(game.text)#.split('\n')[0])
-                        game_list.append((match_name, game_x))
-                        break
-                    except Exception: # match can't get : not exist or not visible
-                        print(' does not clickable...\nscroll page!')
-                        driver.execute_script('window.scrollBy(0,300);')
-                        c += 1
-                else: # not exist
-                    driver.execute_script('window.scrollTo(0,0);')
-                    print('!!!!!!!!!!')
-                    break
-        print(game_list)
-        return game_list
+#                c = 0
+#                while c < 5:
+#                    try:
+#                        game = x_wait(driver, game_x)
+#                        match_name = str(game.text)#.split('\n')[0])
+                game_x_list.append(game_x)
+#                        break
+#                    except Exception: # match can't get : not exist or not visible
+#                        print(' does not clickable...\nscroll page!')
+#                        driver.execute_script('window.scrollBy(0,300);')
+#                        c += 1
+#                else: # not exist
+#                    driver.execute_script('window.scrollTo(0,0);')
+#                    print('!!!!!!!!!!')
+#                    break
+        #print(game_list)
+        return game_x_list[:9]
     else:
         print('Waiting...')
         time.sleep(60)
-        get_games(driver)
+        get_gamesx(driver)
 
-def crawl_tabs_setup(driver, game_list, now_scraping  = []):
-    del_list = []
-    for game_x in game_list:
+def crawl_tabs_setup(driver, game_x_list):
+    del_tab_nums = []
+    del_game_list = []
+    for game_x in game_x_list:
+# X_PATHの数だけTAB作成
         make_tab(driver)
-    for n, game_x in enumerate([i[1] for i in game_list]):
-        change_tab(driver, n + len(now_scraping) + 1)
+
+    for n, game_x in enumerate(game_x_list):
+        change_tab(driver, n + 1)
         try:
-            game = x_wait(driver, game_x)
-            game.click()
+            game_obj = x_wait(driver, game_x)
+            game_obj.click()
+        # now_scraping から何個目か
         except:
-            del_list.append(n)
-        time.sleep(1)
+            del_tab_nums.append(n + 1)
+            del_game_list.append(game_x)
+
     else:
+        for i in del_tab_nums:
+            print('change to ' + str(i) + ' tab')
+            change_tab(driver, i)
+            delete_tab(driver)
+        for j in del_game_list:
+            game_x_list.remove(j)
+
         change_tab(driver, 0)
-    for i in del_list:
-        del game_list[i]
-    return game_list
+    return game_x_list
 
-
-def crawl_tabs_getdata(driver, game_list):
-    for i, game_name in zip(range(len(driver.window_handles[1:])), [j[0] for j in game_list]):
-        print(len(driver.window_handles[1:]), len(game_list))
+def crawl_tabs_getdata(driver, game_x_list):
+    remove_list = []
+    for i, j in zip(range(len(driver.window_handles[1:])), game_x_list):
         change_tab(driver, i + 1)
-        time.sleep(3)
-        end_flag = get_data(driver, game_name)
+        end_flag = get_data(driver)
         if end_flag == 1:
             delete_tab(driver)
             change_tab(driver, 0)
-            break
+            remove_list.append(j)
+            continue
     else:
         change_tab(driver, 0)
+        for i in remove_list:
+            game_x_list.remove(i)
+    return game_x_list
 
-
-def get_data(driver, match_name):
+def get_data(driver):
     end_flag = 0
+    res_dict = {}
+    # match name
+    try:
+        match_name = e_wait(driver, "div.ipe-GridHeader_FixtureCell").text
+    except:
+        print("match_name can't get!")
+        resdict['match_name'] = match_name
     if match_name not in AllResDict:
         try:
             print('====================' + match_name + ' start scraping!====================')
         except UnicodeError:
             print('====================start scraping!===========================')
         AllResDict[match_name] = []
-    res_dict = {}
     try:
         time_reg  = e_wait(driver, "div.ipe-SoccerHeaderLayout_ExtraData")
         if int(time_reg.text[0]) == 9:
             end_flag += 1
-            print('break!!')
+            print('lets break!!')
         res_dict['Time'] = time_reg.text
     except Exception:
-        print("Time can't get")
+        pass
+#print("Time can't get")
     for h in driver.find_elements_by_css_selector(
             "div.gl-MarketGroup"):
         try:
             s = e_wait(h, "div.gl-MarketGroupButton")
-            print('s : ' + s.text)
+            #print('s : ' + s.text)
         except Exception:
-            print("gl-MarketGroupButton not found")
+            #print("gl-MarketGroupButton not found")
             continue
         if s.text == "First Half Goals":
             res_dict['First Half Goals'] = {}
@@ -181,93 +202,99 @@ def get_data(driver, match_name):
             over = h.find_elements_by_css_selector('div.gl-MarketValues')[0].text
             under = h.find_elements_by_css_selector('div.gl-MarketValues')[1].text
             altlist = [[m , n, l] for m, n, l in zip(val.split('\n'), over.split('\n')[1:], under.split('\n')[1:])]
-            print("First Half Goals")
-            print(altlist)
+            #print("First Half Goals")
+            #print(altlist)
             res_dict['First Half Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
         if s.text == "Fulltime Result":
             res_dict['Fulltime Result'] = {}
             e_wait(h, "div.gl-Participant")
-            for m in h.find_elements_by_css_selector(
-                    "div.gl-Participant"):
-                try:
+            try:
+                for m in h.find_elements_by_css_selector(
+                        "div.gl-Participant"):
                     res_dict['Fulltime Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                except Exception:
-                    print('Fulltime Result not showing now.')
+            except Exception:
+                pass
+           # print('Fulltime Result not showing now.')
         if s.text == "Half Time Result":
             res_dict['Half Time Result'] = {}
-            for m in h.find_elements_by_css_selector(
-                    "div.gl-Participant"):
-                try:
+            try:
+                for m in h.find_elements_by_css_selector(
+                        "div.gl-Participant"):
                     res_dict['Half Time Result'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                except Exception:
-                    print('Half Time Result not showing now.')
+            except Exception:
+                pass
+#print('Half Time Result not showing now.')
         if s.text == "1st Goal":
             res_dict['1st Goal'] = {}
-            for m in h.find_elements_by_css_selector(
-                    "div.gl-Participant"):
-                try:
-                    print("1st Goal\n" + m.text)
-                except Exception:
-                    pass
-                try:
+            try:
+                for m in h.find_elements_by_css_selector(
+                        "div.gl-Participant"):
                     res_dict['1st Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                except Exception:
-                    print('1st Goal not showing now.')
+                    #print("1st Goal\n" + m.text)
+            except Exception:
+                pass
+            #print('1st Goal not showing now.')
         if s.text == "2nd Goal":
             res_dict['2nd Goal'] = {}
-            for m in h.find_elements_by_css_selector(
-                    "div.gl-Participant"):
-                try:
-                    print("2nd Goal\n" + m.text)
-                except Exception:
-                    pass
-                try:
+            try:
+                for m in h.find_elements_by_css_selector(
+                        "div.gl-Participant"):
                     res_dict['2nd Goal'][m.text.split('\n')[0]] = m.text.split('\n')[1]
-                except Exception:
-                    print('2nd Goal not showing now.')
+#                    print("2nd Goal\n" + m.text)
+            except Exception:
+                pass
+#print('2nd Goal not showing now.')
         if s.text == "Alternative Match Goals":
             try:
                 val = e_wait(h, 'div.gl-MarketLabel').text
                 over = h.find_elements_by_css_selector('div.gl-MarketValues')[0].text
                 under = h.find_elements_by_css_selector('div.gl-MarketValues')[1].text
                 altlist = [[m , n, l] for m, n, l in zip(val.split('\n'), over.split('\n')[1:], under.split('\n')[1:])]
-                print("Alternative Match Goals")
-                print(altlist)
+                #print("Alternative Match Goals")
+                #print(altlist)
                 res_dict['Alternative Match Goals'] = [val, over.lstrip('Over\n'), under.lstrip('Under\n')]
             except Exception:
-                print('Alternative Match Goals not showing now.')
+                pass
+#print('Alternative Match Goals not showing now.')
 
 # Boad
     corner = x_wait(driver, "//div[contains(@class, 'ipe-SoccerGridColumn_ICorner')]")
     yellow = x_wait(driver, "//div[@class='ipe-SoccerGridContainer ']/div[contains(@class, 'ipe-SoccerGridColumn_IYellowCard')]")
     red = x_wait(driver, "//div[@class='ipe-SoccerGridContainer ']/div[contains(@class, 'ipe-SoccerGridColumn_IRedCard')]")
     penalty = x_wait(driver, "//div[@class='ipe-SoccerGridContainer ']/div[contains(@class, 'ipe-SoccerGridColumn_IPenalty')]")
-    goal = driver.find_elements_by_xpath("//div[@class='ipe-SoccerGridContainer ']/div[contains(@class, 'ipe-SoccerGridColumn')]")[-1]
+    try:
+        goal = driver.find_elements_by_xpath("//div[@class='ipe-SoccerGridContainer ']/div[contains(@class, 'ipe-SoccerGridColumn')]")[-1]
+    except:
+        goal = None
     for i, j in zip(("Corner", "Yellow", "Red", "Penalty", "Goal"), (corner, yellow, red, penalty, goal)):
         try:
-            print(i + ' : ' + ','.join(j.text.split("\n")))
+            #print(i + ' : ' + ','.join(j.text.split("\n")))
             res_dict[i] = j.text.split("\n")
         except Exception:
-            print(i + " can't get")
+            #print(i + " can't get")
             res_dict[i] = 'NoData'
     # Wheel nums
     right_button = c_wait(driver, "//div[contains(@class, 'lv-ButtonBar_MatchLive')]")
-    right_button.click()
+    try:
+        right_button.click()
+    except:
+        pass
     e_wait(driver, "div.ml1-StatWheel_Team1Text")
     for i, num in zip(('Attacks', 'Dangerous Attacks', 'Possession'), range(3)):
         try:
             element1 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team1Text")[num].text
             element2 = driver.find_elements_by_css_selector("div.ml1-StatWheel_Team2Text")[num].text
-            print(i + ' ' + element1 + ':' + element2)
+            #print(i + ' ' + element1 + ':' + element2)
             res_dict[i] = (element1, element2)
         except Exception:
-            print('There is no ' + str(i))
+            pass
+#print('There is no ' + str(i))
     # Bar nums
     for i, num in zip(('On Target', 'Off Target'), range(2)):
         try:
             element1 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar")[num].text.split('\n')[0]
             element2 = driver.find_elements_by_css_selector("div.ml1-SoccerStatsBar")[num].text.split('\n')[1]
-            print(i + ' ' + element1 + ':' + element2)
+            #print(i + ' ' + element1 + ':' + element2)
             res_dict[i] = (element1, element2)
         except Exception:
             print('There is no ' + str(i))
@@ -286,10 +313,11 @@ def get_data(driver, match_name):
         delta.click()
         events = x_wait(driver, "//div[contains(@class, 'ipe-SummaryNativeScroller_Content')]")
         events_list = events.text.split('\n')
-        print(events_list)
+#print(events_list)
         EventsDict[match_name] = events_list
     except Exception:
-        print("events list can't get.")
+        pass
+#print("events list can't get.")
     return end_flag
 
     """"
@@ -320,7 +348,7 @@ def get_data(driver, match_name):
         TagRemovePatt = r'<.*?>'
     """
 
-def get_diff(now_scraping, now_opening):
+def get_diff(now_opening, now_scraping):
     appending_list = []
     for i in now_opening:
         if i[0] not in [k[0] for k in now_scraping]:
@@ -340,7 +368,6 @@ def ExcelWriter(AllResDict, EventsDict):
         os.mkdir('Report')
     except FileExistsError:
         print("Result is included in Report directory.")
-        pass
     Template = './Template/Template.xlsx'
     Target = px.load_workbook(Template)
 
@@ -457,15 +484,22 @@ def time_delta(time_a, time_b):
     time_delta_h = time_delta_sec / 3600
     return time_delta_h
 
-def e_wait(driver, element, max_time = 10):
+def restart(driver):
+    time.sleep(1)
+    driver = set_up(url)
+    # Get (geme_name, X_PASS) list
+    game_x_list = get_gamesx(driver)
+    return game_x_list
+
+def e_wait(driver, element, max_time = 15):
     return_element = None
     try:
         return_element = WebDriverWait(driver, max_time).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, element))
                 )
     except Exception:
-        print(element + " can't get!")
         pass
+#print(element + " can't get!")
     return return_element
 
 def c_wait(driver, element, max_time = 10):
@@ -475,8 +509,8 @@ def c_wait(driver, element, max_time = 10):
                 EC.element_to_be_clickable((By.XPATH, element))
                 )
     except Exception:
-        print(element + " can't get!")
         pass
+#print(element + " can't get!")
     return return_element
 
 
@@ -487,8 +521,8 @@ def x_wait(driver, element, max_time = 15):
                 EC.presence_of_element_located((By.XPATH, element))
                 )
     except Exception:
-        print(element + " can't get!")
         pass
+    #print(element + " can't get!")
     return return_element
 
 
@@ -499,8 +533,8 @@ def v_wait(driver, element, max_time = 10):
                 EC.visibility_of_element_located((By.XPATH, element))
                 )
     except Exception:
-        print(element + " can't get!")
         pass
+#print(element + " can't get!")
     return return_element
 
 
@@ -526,12 +560,12 @@ def Argument_Parser():
             type=float,
             help="specify run time with option '-t'",
             )
-    parser.add_argument('-lc', '--loop_count',
+    parser.add_argument('-ut', '--update_time',
             action='store',
-            dest='l_count',
-            default=10,
-            type=int,
-            help="specify loop count with option '-lc'")
+            dest='update',
+            default=0.2,
+            type=float,
+            help="specify update time with option '-ut'")
 
  
     args = parser.parse_args()
@@ -543,33 +577,46 @@ def main():
     global url, now_scraping, AllResDict, EventsDict
     url = 'https://www.bet365.com/home/'
     driver = set_up(url)
-    # Get (geme_name, X_PASS) list
-    game_list = get_games(driver)
-    now_scraping = crawl_tabs_setup(driver, game_list)
+    # 開く試合の決定（X_PATH）
+    game_x_list = get_gamesx(driver)
+    # X_PATHから取得できなかったPATHの削除。
+# Browser上でXPATH取得できたものだけ開く。
+    now_scraping = crawl_tabs_setup(driver, game_x_list)
     AllResDict = {}
     EventsDict = {}
+    TimeUpCount = 0
     while True:
         try:
             NowTime = datetime.datetime.now()
             TimeDelta = time_delta(NowTime, FirstTime)
+            UpdateTime = args.update
+            Timer = TimeDelta - UpdateTime * TimeUpCount
             print('Passed Time : ' + str(TimeDelta) + " h")
             if TimeDelta >= args.time_h:
                 break
-            now_opening = get_games(driver)
-            appending_list = get_diff(now_opening, now_scraping)
-            print(appending_list)
-            if len(appending_list) > 0:
+            if Timer > UpdateTime:
+                print('=====Update!!=====')
+                TimeUpCount += 1
+                print(len(now_scraping))
+                for i in range(len(now_scraping), 0, -1):
+                    change_tab(driver, i)
+                    delete_tab(driver)
+                else:
+                    change_tab(driver, 0)
+                game_x_list = get_gamesx(driver)
+                now_scraping = crawl_tabs_setup(driver, game_x_list)
+            print('Now scraping ' + str(len(now_scraping)) + 'matchs')
+#            appending_list = get_diff(now_opening, now_scraping)
+#            print(appending_list)
+#            if len(appending_list) > 0#:
                 # Add adding games(now opening - now scraping)
-                crawl_tabs_setup(driver, appending_list, now_scraping)
-            now_scraping = now_opening
-            game_list = get_games(driver)
-            crawl_tabs_getdata(driver, game_list)
+#                crawl_tabs_setup(driver, appending_list, now_scraping)
+#            now_scraping = get_games(driver)
+            now_scraping = crawl_tabs_getdata(driver, now_scraping)
+
         except:
-            driver.quit()
-            driver = set_up(url)
-            # Get (geme_name, X_PASS) list
-            game_list = get_games(driver)
-            now_scraping = crawl_tabs_setup(driver, game_list)
+            change_tab(driver, 0)
+            continue
     driver.quit()
     ExcelWriter(AllResDict, EventsDict)
     print('END!!')
