@@ -167,6 +167,16 @@ def crawl_tabs_getdata(driver, game_x_list):
 def get_data(driver):
     end_flag = 0
     res_dict = {}
+    # change preference
+    try:
+        pref_button = e_wait(driver, 'div.hm-OddsDropDownSelections')
+        pref_button.click()
+        time.sleep(1)
+        decimal = pref_button.find_elements_by_css_selector("a.hm-DropDownSelections_Item ")[1]
+        decimal.click()
+    except:
+        print("pref_button can't clicked")
+        pass
     # match name
     try:
         match_name = e_wait(driver, "div.ipe-GridHeader_FixtureCell").text
@@ -577,15 +587,15 @@ def main():
     global url, now_scraping, AllResDict, EventsDict
     url = 'https://www.bet365.com/home/'
     driver = set_up(url)
-    # 開く試合の決定（X_PATH）
     game_x_list = get_gamesx(driver)
-    # X_PATHから取得できなかったPATHの削除。
-# Browser上でXPATH取得できたものだけ開く。
     now_scraping = crawl_tabs_setup(driver, game_x_list)
     AllResDict = {}
     EventsDict = {}
     TimeUpCount = 0
     while True:
+        if len(game_x_list) == 0:
+            print('Waiting...')
+            time.sleep(30)
         try:
             NowTime = datetime.datetime.now()
             TimeDelta = time_delta(NowTime, FirstTime)
