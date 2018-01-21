@@ -136,6 +136,15 @@ def crawl_tabs_setup(driver, game_x_list):
         except:
             del_tab_nums.append(n + 1)
             del_game_list.append(game_x)
+        try:
+            pref_button = e_wait(driver, 'div.hm-OddsDropDownSelections')
+            pref_button.click()
+            time.sleep(1)
+            decimal = pref_button.find_elements_by_css_selector("a.hm-DropDownSelections_Item ")[1]
+            decimal.click()
+        except:
+            print("pref_button can't clicked")
+            pass
 
     else:
         for i in del_tab_nums:
@@ -148,35 +157,23 @@ def crawl_tabs_setup(driver, game_x_list):
         change_tab(driver, 0)
     return game_x_list
 
-def crawl_tabs_getdata(driver, game_x_list):
+def crawl_tabs_getdata(driver):
     remove_list = []
-    for i, j in zip(range(len(driver.window_handles[1:])), game_x_list):
+    for i in range(len(driver.window_handles[1:])):
         change_tab(driver, i + 1)
         end_flag = get_data(driver)
         if end_flag == 1:
+            print('delete tabs')
             delete_tab(driver)
             change_tab(driver, 0)
-            remove_list.append(j)
-            continue
+            break
     else:
         change_tab(driver, 0)
-        for i in remove_list:
-            game_x_list.remove(i)
-    return game_x_list
 
 def get_data(driver):
     end_flag = 0
     res_dict = {}
     # change preference
-    try:
-        pref_button = e_wait(driver, 'div.hm-OddsDropDownSelections')
-        pref_button.click()
-        time.sleep(1)
-        decimal = pref_button.find_elements_by_css_selector("a.hm-DropDownSelections_Item ")[1]
-        decimal.click()
-    except:
-        print("pref_button can't clicked")
-        pass
     # match name
     try:
         match_name = e_wait(driver, "div.ipe-GridHeader_FixtureCell").text
@@ -573,7 +570,7 @@ def Argument_Parser():
     parser.add_argument('-ut', '--update_time',
             action='store',
             dest='update',
-            default=0.2,
+            default=0.1,
             type=float,
             help="specify update time with option '-ut'")
 
@@ -607,22 +604,21 @@ def main():
             if Timer > UpdateTime:
                 print('=====Update!!=====')
                 TimeUpCount += 1
-                print(len(now_scraping))
-                for i in range(len(now_scraping), 0, -1):
+                for i in range(len(driver.window_handles[1:]), 0, -1):
                     change_tab(driver, i)
                     delete_tab(driver)
                 else:
                     change_tab(driver, 0)
                 game_x_list = get_gamesx(driver)
                 now_scraping = crawl_tabs_setup(driver, game_x_list)
-            print('Now scraping ' + str(len(now_scraping)) + 'matchs')
+            now_scraping = crawl_tabs_getdata(driver)
+            print('Now scraping ' + str(len(driver.window_handles[1:])) + 'matchs')
 #            appending_list = get_diff(now_opening, now_scraping)
 #            print(appending_list)
 #            if len(appending_list) > 0#:
                 # Add adding games(now opening - now scraping)
 #                crawl_tabs_setup(driver, appending_list, now_scraping)
 #            now_scraping = get_games(driver)
-            now_scraping = crawl_tabs_getdata(driver, now_scraping)
 
         except:
             change_tab(driver, 0)
