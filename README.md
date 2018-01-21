@@ -48,6 +48,9 @@ pip install selenium
 
 **Attention**  
 If you use Chrome v63, you might come across the following ERROR.  
+```
+[2084:15336:0122/011954.236:ERROR:process_metrics.cc(105)] NOT IMPLEMENTED
+```
 You should Download & Install Chrome v61-62 from [here](https://www.slimjet.com/chrome/google-chrome-old-version.php)
 
 
