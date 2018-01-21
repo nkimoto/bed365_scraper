@@ -46,6 +46,9 @@ pip install selenium
         sudo yum install -y libX11 GConf2 fontconfig
 
 
+**Attention**
+If you use Chrome v63, you might come across the following ERROR.
+You should Download & Install Chrome v61-62 from [here](https://www.slimjet.com/chrome/google-chrome-old-version.php)
 
 
 ## Cloning the repository
